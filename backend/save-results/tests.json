@@ -1,0 +1,21 @@
+{
+  "tests": [
+    {
+      "name": "Save parsing results",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "url": "https://example.com",
+        "selector": ".post",
+        "items": [
+          {
+            "title": "Test Title",
+            "content": "Test Content",
+            "link": "https://example.com/1"
+          }
+        ]
+      },
+      "expectedStatus": 200
+    }
+  ]
+}

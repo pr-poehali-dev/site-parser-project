@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,11 +16,31 @@ interface ParsedData {
   link: string;
 }
 
+interface Task {
+  id: number;
+  url: string;
+  selector: string;
+  status: string;
+  created_at: string;
+  total_items: number;
+}
+
 const Index = () => {
   const [url, setUrl] = useState('');
   const [selector, setSelector] = useState('');
   const [parsedData, setParsedData] = useState<ParsedData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [history, setHistory] = useState<Task[]>([]);
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  const loadHistory = async () => {
+    const response = await fetch('https://functions.poehali.dev/5ca7fc39-4cf5-44eb-a1e2-747d3d7dcc66');
+    const data = await response.json();
+    setHistory(data.tasks || []);
+  };
 
   const handleParse = async () => {
     if (!url || !selector) {
@@ -30,7 +50,7 @@ const Index = () => {
 
     setIsLoading(true);
     
-    setTimeout(() => {
+    setTimeout(async () => {
       const mockData: ParsedData[] = [
         { id: 1, title: 'Заголовок 1', content: 'Контент первого элемента с описанием', link: 'https://example.com/1' },
         { id: 2, title: 'Заголовок 2', content: 'Контент второго элемента с описанием', link: 'https://example.com/2' },
@@ -40,6 +60,18 @@ const Index = () => {
       ];
       
       setParsedData(mockData);
+      
+      await fetch('https://functions.poehali.dev/6e1761a5-f100-4a5f-a9c7-1e879ba43285', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url,
+          selector,
+          items: mockData
+        })
+      });
+      
+      await loadHistory();
       setIsLoading(false);
       toast.success(`Успешно спарсено ${mockData.length} элементов`);
     }, 1500);
@@ -99,10 +131,14 @@ const Index = () => {
         </div>
 
         <Tabs defaultValue="parsing" className="space-y-6">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3">
             <TabsTrigger value="parsing" className="flex items-center gap-2">
               <Icon name="Globe" size={16} />
               Парсинг
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <Icon name="History" size={16} />
+              История
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Icon name="Settings" size={16} />
@@ -239,6 +275,68 @@ const Index = () => {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-6">
+            <Card className="border-primary/10 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Icon name="Clock" size={20} />
+                  История парсинга
+                </CardTitle>
+                <CardDescription>Последние {history.length} заданий</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {history.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Icon name="Inbox" size={48} className="mx-auto mb-2 opacity-50" />
+                    <p>История пуста</p>
+                  </div>
+                ) : (
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead>URL</TableHead>
+                          <TableHead>Селектор</TableHead>
+                          <TableHead>Элементов</TableHead>
+                          <TableHead>Дата</TableHead>
+                          <TableHead>Статус</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {history.map((task) => (
+                          <TableRow key={task.id} className="hover:bg-muted/30 transition-colors">
+                            <TableCell className="font-medium max-w-xs truncate">
+                              {task.url}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm text-muted-foreground">
+                              {task.selector}
+                            </TableCell>
+                            <TableCell>
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-sm">
+                                {task.total_items}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {new Date(task.created_at).toLocaleString('ru-RU')}
+                            </TableCell>
+                            <TableCell>
+                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+                                task.status === 'completed' ? 'bg-green-500/10 text-green-600' : 'bg-yellow-500/10 text-yellow-600'
+                              }`}>
+                                <Icon name={task.status === 'completed' ? 'CheckCircle2' : 'Clock'} size={12} />
+                                {task.status === 'completed' ? 'Завершено' : 'В процессе'}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
